@@ -470,6 +470,11 @@ void SPIApp::parseBinaryInfo(uint16_t decoderId, const MOTObject &motObj)
     const QByteArray data = motObj.getBody();
     m_xmldocument.clear();
     m_tokenTable.clear();
+
+    // compatibility with encoding according to ETSI TS 102 371 V1.3.1 (2008-07)
+    m_contentId.clear();
+    m_scopeStart = QDateTime();
+
     QDomProcessingInstruction header = m_xmldocument.createProcessingInstruction("xml", "version=\"1.0\" encoding=\"utf-8\"");
     m_xmldocument.appendChild(header);
     const uint8_t * dataPtr = (uint8_t *) data.data();
@@ -495,6 +500,10 @@ void SPIApp::parseBinaryInfo(uint16_t decoderId, const MOTObject &motObj)
                 if (scope.isNull())
                 {   // scope not found creating using MOT objects params
                     scope = m_xmldocument.createElement("scope");
+                    if (scopeStart.isEmpty())
+                    {
+                        scopeStart = m_scopeStart.toString(Qt::ISODate);
+                    }
                     scope.setAttribute("startTime", scopeStart);
                     if (scopeEnd.isEmpty())
                     {
@@ -502,6 +511,10 @@ void SPIApp::parseBinaryInfo(uint16_t decoderId, const MOTObject &motObj)
                     }
                     scope.setAttribute("stopTime", scopeEnd);
 
+                    if (scopeId.isEmpty())
+                    {
+                        scopeId = m_contentId;     // compatibility with encoding according to ETSI TS 102 371 V1.3.1 (2008-07)
+                    }
                     QDomElement serviceScope = m_xmldocument.createElement("serviceScope");
                     serviceScope.setAttribute("id", scopeId);
                     scope.appendChild(serviceScope);
@@ -619,6 +632,16 @@ uint32_t SPIApp::parseTag(const uint8_t * dataPtr, QDomElement & parentElement, 
                 bytesRead += tokenLen+2;
                 dataPtr += tokenLen;
             }
+            break;
+        case SPIElement::Tag::defaultContentId:
+            // ETSI TS 102 371 V1.3.1 (2008-07 [4.10]
+            // This element is not defined in the XML specification. This element can only occur within the top-level element (epg) and,
+            // if present, it shall occur after the string token table (if present) and before the default language (if present) and any other child elements.
+
+            qCWarning(spiApp) << "Obsolete EPG encoding (ETSI TS 102 371 v1.x.x)";
+            m_contentId = getBearerURI(dataPtr, len);
+            bytesRead += len;
+            dataPtr += len;
             break;
         case SPIElement::Tag::defaultLanguage:
         {
@@ -1322,6 +1345,12 @@ QString SPIApp::getTime(const uint8_t *dataPtr, int len)
     // construct time
     QDateTime dateAndTime = DabTables::dabTimeToUTC(dateHoursMinutes, secMsec).toOffsetFromUtc(60*(lto * 30));
 
+    // compatibility with encoding according to ETSI TS 102 371 V1.3.1 (2008-07)
+    if (m_scopeStart.isNull() || (dateAndTime < m_scopeStart))
+    {
+        m_scopeStart = dateAndTime;
+    }
+
     // convert to string
     return dateAndTime.toString(Qt::ISODateWithMs);
 }
@@ -1425,15 +1454,38 @@ void SPIApp::setAttribute_duration(QDomElement &element, const QString &name, co
 
 QString SPIApp::getBearerURI(const uint8_t *dataPtr, int len)
 {
-    if (len >= 6)
+    if (len >= 3)
     {
         uint8_t longSId = *dataPtr & 0x10;
-
         uint8_t scids = *dataPtr++ & 0x0F;
-        uint8_t ecc = *dataPtr++;
-        uint16_t eid = *dataPtr++;
-        eid = (eid << 8) | *dataPtr++;
-        if (longSId)
+
+        // [ETSI TS 102 371 V3.3.1 (2023-12)]
+        // Ens flag: This 1-bit flag shall be set to 1 for reasons of backwards compatibility.
+
+        // [ETSI TS 102 371 V1.3.1 (2008-07)]
+        // Ens flag: This 1-bit flag shall indicate whether the ECC and EId are contained within the contentID, as follows:
+        // 0: ECC and EId are not present. The service that is referenced within the contentID is transmitted on the
+        //          same ensemble as this EPG service.
+        // 1: ECC and EId are present.
+
+        // this is for backward compatibility
+        uint8_t haveEid = *dataPtr & 0x40;
+        uint8_t ecc = m_ueid >> 16;
+        uint16_t eid = uint16_t(m_ueid);
+        if (haveEid != 0)
+        {
+            if (len >= 6)
+            {
+                ecc = *dataPtr++;
+                eid = *dataPtr++;
+                eid = (eid << 8) | *dataPtr++;
+            }
+            else
+            {   /* not enough data */
+                return QString();
+            }
+        }
+        if (longSId != 0)
         {  // long SId
             if (len >= 8)
             {
