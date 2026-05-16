@@ -41,6 +41,10 @@
 #define SOAPYSDR_RECORD_FLOAT2INT16 (32768)  // conversion constant to int16
 
 #define SOAPYSDR_INPUT_SAMPLES (16384)
+#define SOAPYSDR_RESTART_SKIP_MS (150)
+#define SOAPYSDR_AGC_LEVEL_EMIT_PERIOD_MS (200)
+
+#define SOAPYSDR_TIMING_DEBUG 0
 
 struct SoapyGainStruct
 {
@@ -56,13 +60,18 @@ public:
     ~SoapySdrWorker();
     void startStopRecording(bool ena);
     bool isRunning();
+    void restart();
     void stop();
 
-protected:
-    void run() override;
 signals:
     void agcLevel(float level);
     void recordBuffer(const uint8_t *buf, uint32_t len);
+    void dataReady();
+
+protected:
+    int m_restartPeriod;
+    uint_fast8_t m_signalLevelEmitPeriod;
+    void run() override;
 
 private:
     SoapySDR::Device *m_device;
@@ -70,6 +79,7 @@ private:
     std::atomic<bool> m_isRecording;
     std::atomic<bool> m_watchdogFlag;
     std::atomic<bool> m_doReadIQ;
+    std::atomic<int8_t> m_captureStartCntr;
 
     // SRC
     float *m_filterOutBuffer;
@@ -77,7 +87,7 @@ private:
 
     // AGC memory
     float m_agcLevel = 0.0;
-    uint_fast8_t m_signalLevelEmitCntr;
+    int_fast8_t m_signalLevelEmitCntr;
 
     void doRecordBuffer(const float *buf, uint32_t len);
     void processInputData(std::complex<float> buff[], size_t numSamples);
@@ -110,9 +120,10 @@ protected:
     uint32_t m_frequency;
     uint32_t m_bandwidth;
     int m_ppm;
-    bool m_deviceUnpluggedFlag;
-    bool m_deviceRunningFlag;
     SoapySDR::Device *m_device;
+#if SOAPYSDR_TIMING_DEBUG
+    QElapsedTimer m_elapsedTimer;
+#endif
 
     // settimgs
     QString m_devArgs;

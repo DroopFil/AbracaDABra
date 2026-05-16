@@ -180,7 +180,13 @@ bool SdrPlayInput::openDevice(const QVariant &hwId, bool fallbackConnection)
 
     if (isConnected)
     {
+#if SOAPYSDR_TIMING_DEBUG
+        qDebug() << "setGainMode (false)" << m_elapsedTimer.restart();
+#endif
         m_device->setGainMode(SOAPY_SDR_RX, m_rxChannel, false);
+#if SOAPYSDR_TIMING_DEBUG
+        qDebug() << "---> setGainMode (false)" << m_elapsedTimer.restart();
+#endif
         if (m_rfGainMap.contains(m_deviceDescription.device.model))
         {
             m_rfGainList = m_rfGainMap.value(m_deviceDescription.device.model);
@@ -200,12 +206,24 @@ void SdrPlayInput::setGainMode(const SdrPlayGainStruct &gain)
                 break;
             }
             m_gainMode = gain.mode;
+#if SOAPYSDR_TIMING_DEBUG
+            qDebug() << "setGainMode (false)" << m_elapsedTimer.restart();
+#endif
             m_device->setGainMode(SOAPY_SDR_RX, m_rxChannel, false);
+#if SOAPYSDR_TIMING_DEBUG
+            qDebug() << "---> setGainMode (false)" << m_elapsedTimer.restart();
+#endif
             resetAgc();
             break;
         case SdrPlayGainMode::Manual:
             m_gainMode = gain.mode;
+#if SOAPYSDR_TIMING_DEBUG
+            qDebug() << "setGainMode (false)" << m_elapsedTimer.restart();
+#endif
             m_device->setGainMode(SOAPY_SDR_RX, m_rxChannel, false);
+#if SOAPYSDR_TIMING_DEBUG
+            qDebug() << "---> setGainMode (false)" << m_elapsedTimer.restart();
+#endif
             setRFGR(m_rfGainList.size() - 1 - gain.rfGain);
             m_ifAgcEna = gain.ifAgcEna;
             if (!m_ifAgcEna)
@@ -295,7 +313,13 @@ void SdrPlayInput::setRFGR(int rfGR)
         m_rfGR = rfGR;
         try
         {
+#if SOAPYSDR_TIMING_DEBUG
+            qDebug() << Q_FUNC_INFO << "setGain RFGR =" << m_rfGR << m_elapsedTimer.restart();
+#endif
             m_device->setGain(SOAPY_SDR_RX, m_rxChannel, "RFGR", m_rfGR);
+#if SOAPYSDR_TIMING_DEBUG
+            qDebug() << "---> setGain RFGR =" << m_rfGR << m_elapsedTimer.restart();
+#endif
             qCDebug(sdrPlayInput) << "RF gain =" << getRFGain();
             emit gainIdx(m_rfGainList.size() - 1 - m_rfGR);
         }
@@ -322,7 +346,13 @@ void SdrPlayInput::setIFGR(int ifGR)
         m_ifGR = ifGR;
         try
         {
+#if SOAPYSDR_TIMING_DEBUG
+            qDebug() << Q_FUNC_INFO << "setGain IFGR =" << m_ifGR << m_elapsedTimer.restart();
+#endif
             m_device->setGain(SOAPY_SDR_RX, m_rxChannel, "IFGR", m_ifGR);
+#if SOAPYSDR_TIMING_DEBUG
+            qDebug() << "---> setGain IFGR =" << m_ifGR << m_elapsedTimer.restart();
+#endif
             qCDebug(sdrPlayInput) << "IF gain =" << -m_ifGR;
             emit ifGain(-m_ifGR);
         }
@@ -336,6 +366,9 @@ void SdrPlayInput::setIFGR(int ifGR)
 
 void SdrPlayInput::onAgcLevel(float agcLevel)
 {
+#if SOAPYSDR_TIMING_DEBUG
+    qDebug() << "-----------------------------------------------" << m_elapsedTimer.elapsed();
+#endif
     m_rfGRchangeCntr = (m_rfGRchangeCntr > 0 ? m_rfGRchangeCntr - 1 : 0);
     if (SdrPlayGainMode::Software == m_gainMode)
     {
@@ -343,30 +376,30 @@ void SdrPlayInput::onAgcLevel(float agcLevel)
         {
             if (agcLevel > SDRPLAY_LEVEL_THR_MAX)
             {  // decrease gain
-                setIFGR(m_ifGR + 1);
-                if (m_ifGR >= SDRPLAY_RFGR_UP_THR)
+                if (qMin(m_ifGR + 1, m_ifGRmax) > SDRPLAY_RFGR_UP_THR && m_rfGRchangeCntr <= 0)
                 {
-                    if (m_rfGRchangeCntr <= 0)
-                    {
-                        m_rfGRchangeCntr = 2;
-                        float gain = getRFGain();
-                        setRFGR(m_rfGR + 1);
-                        setIFGR(m_ifGR - (gain - getRFGain()) - 1);
-                    }
+                    m_rfGRchangeCntr = 2;
+                    float gain = getRFGain();
+                    setRFGR(m_rfGR + 1);
+                    setIFGR(m_ifGR - (gain - getRFGain()));
+                }
+                else
+                {
+                    setIFGR(m_ifGR + 1);
                 }
             }
             else if (agcLevel < SDRPLAY_LEVEL_THR_MIN)
             {
-                setIFGR(m_ifGR - 1);
-                if ((m_ifGR < SDRPLAY_RFGR_DOWN_THR) && (m_rfGR > 0))
+                if (qMax(m_ifGR + 1, m_ifGRmin) < SDRPLAY_RFGR_DOWN_THR && (m_rfGR > 0) && (m_rfGRchangeCntr <= 0))
                 {
-                    if (m_rfGRchangeCntr <= 0)
-                    {
-                        m_rfGRchangeCntr = 2;
-                        float gain = getRFGain();
-                        setRFGR(m_rfGR - 1);
-                        setIFGR(m_ifGR + (gain - getRFGain()) + 1);
-                    }
+                    m_rfGRchangeCntr = 2;
+                    float gain = getRFGain();
+                    setRFGR(m_rfGR - 1);
+                    setIFGR(m_ifGR + (gain - getRFGain()));
+                }
+                else
+                {
+                    setIFGR(m_ifGR - 1);
                 }
             }
             else if (m_rfGRchangeCntr <= 0)
