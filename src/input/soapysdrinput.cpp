@@ -38,6 +38,7 @@ SoapySdrInput::SoapySdrInput(QObject *parent) : InputDevice(parent)
 
     m_device = nullptr;
     m_gains = nullptr;
+    m_worker = nullptr;
     m_frequency = 0;
     m_bandwidth = 0;
     m_ppm = 0;

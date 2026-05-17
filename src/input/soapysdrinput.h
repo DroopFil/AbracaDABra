@@ -129,7 +129,7 @@ protected:
     QString m_devArgs;
     QString m_antenna;
     int m_rxChannel = 0;
-    SoapySdrWorker *m_worker;
+    SoapySdrWorker *m_worker = nullptr;
     QTimer m_watchdogTimer;
     SoapyGainMode m_gainMode = SoapyGainMode::Manual;
     QList<QPair<QString, SoapySDR::Range>> *m_gains;  // using list to keep original order
