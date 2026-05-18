@@ -402,7 +402,8 @@ The plot can be zoomed in both axes by mouse wheel or in one axis by clicking on
 The TII Decoder view shows an interactive map provided by [OpenStreetMap](https://www.openstreetmap.org/copyright), a table of detected transmitter codes and ensemble information. The blue dot shows the location configured in Settings or current receiver location when real-time GPS position is available.
 By default, the table shows the TII code (Main-Sub), the relative transmitter level, and distance and azimuth if the position of the transmitter is known. The columns can be modified from settings. The table can be sorted by any column by clicking on its header, by default it is sorted by Level so that the strongest transmitter is on top.
 To see details of a particular transmitter, you can either select it by clicking on the row in the table or you can click on the position bubble in the map. Transmitter details are shown above the map in bottom right corner like in the screenshot above. 
-It is also possible to record a CSV log with received codes using the "recording dot" button in the bottom left corner of the view. Logs are stored in `tii` directory under [data storage](#data-storage) folder.
+It is also possible to record a CSV log with received codes using the "recording dot" button in the bottom left corner of the view. Logs are stored in `tii` directory under [data storage](#data-storage) folder. 
+There are some interesting projects to visualize CVS logs, check it [here](#projects-using-abracadabra-logs).
 
 ## Scanning tool
 
@@ -425,6 +426,8 @@ By default, all the channels in band III are scanned (5A-13F, 38 channels in tot
 The scanning results are displayed in the table and as red circles on the map. The blue circle is the location specified in the TII settings. You can select any row in the table by clicking on it and the corresponding transmitter is shown as a bubble on the map with detailed information shown in the bottom right corner (see screenshot above). It also works the other way around by clicking the red circle on the map. Selection of multiple rows is also supported. In this case the corresponding dots are shown on the map but no details about the transmitters are available. The table can be sorted by any column by clicking on its header. It is possible to display the ensemble structure by double clicking on the row or from the context menu shown with a right mouse click (Precise mode only).
 
 Results of scanning can be stored to a CSV file using the "Save as CSV" menu item. The scanner tool does not store the results "on the fly" during scanning by default but it can be configured to do so by enabling AutoSave option in menu. Scanning log is stored as CVS file in `scanner` directory under [data storage](#data-storage) folder. Application stores GPS location of the receiver when it is enabled in TII settings. You can also load previously stored CSV files to display the results. Please note that this CSV file replaces the contents of the table. When GPS location of the receiver is found in the log, application shows the first valid location as blue dot on the map and calculated distances from this location, when GPS location is not the the log, application uses current location to calculate the distances.
+
+There are some interesting projects to visualize CVS logs, check it [here](#projects-using-abracadabra-logs).
 
 Individual transmitters in scanning results can be marked as local (known) transmitters using context menu (multiple transmitters can be selected and marked as local at once). These local (known) transmitters can be excluded from results view using "Hide local (known) transmitters" option in Scanner tool menu. Furthermore, when local transmitters are hidden, they are not exported to CSV. 
 
@@ -624,6 +627,13 @@ You can set the buffer size to be unlimited using this command:
 sudo bash -c 'echo 0 > /sys/module/usbcore/parameters/usbfs_memory_mb'
 ```
 There are instructions on the internet that explain how to make this setting persistent, for example [here](https://github.com/OpenKinect/libfreenect2/issues/807)
+
+## Projects using AbracaDABra logs
+
+[AbracaDABra-TII-Logs-Analyzer](https://lucasgallone.github.io/AbracaDABra-TII-Logs-Analyzer/) is a tool by [@LucasGallone](https://github.com/LucasGallone) to create beautiful DAB scan summary from CSV logs.
+
+[abracadabra-tii-heatmapper](https://github.com/itewreed/abracadabra-tii-heatmapper) is a Python script created by [@itewreed](https://github.com/itewreed) to visualize TII log as a heatmap. 
+
        
 
 
